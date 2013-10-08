@@ -3,12 +3,6 @@ udooupdate
 
 UDOO Kernel &amp; U-Boot Update Script
 
- ################################
- #				#
- # UDOO Kernel & U-Boot Updater	#
- #				#
- ################################
-
 Usage: ./udooupdate.sh [OPTION]...
 
 Options:
