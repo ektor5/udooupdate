@@ -25,7 +25,7 @@ Options:
 All of this commands are useful for cross-updating UDOO from your pc.
 So don't touch them if you're not sure of what you are doing!
 
-Report bugs to <udoo@UDOO.org>.
+Report bugs to <info@udoo.org>.
 HELP
 
  exit
@@ -76,12 +76,14 @@ do
 	shift
 done
 
+#Check if run as root
+if [[ "$(id -u)" != "0" ]]; then
+    error "You are not root. Try execute: sudo ./udooupdate.sh"
+fi
 
-if [ ! -c $MMC ]
+if [ ! -b $MMC ]
 then
- echo "Error: $MMC isn't a regular block file" 
- MMC=""
- exit 1
+ error "$MMC isn't a regular block file" 
 fi
 
 if [ ! -d $PREFIX ]
@@ -89,7 +91,6 @@ then
  echo "Error: Prefix not valid!";
  help
 fi
-exit
 
 case $CPU in
 	quad) UBOOT="$QUAD";;
@@ -97,12 +98,12 @@ case $CPU in
 	"") 
 		DMSGOUT=$(dmesg)
 	
-		if [[ DMSGOUT =~ "UDOO quad" ]] 
+		if [[ $DMSGOUT =~ "UDOO quad" ]] 
 		then
 		 UBOOT="$QUAD"
 		 CPU="quad"
 	
-		elif [[ DMSGOUT =~ "UDOO dual" ]]
+		elif [[ $DMSGOUT =~ "UDOO dual" ]]
 		then
 		 UBOOT="$DUAL"
 		 CPU="dual"
@@ -115,10 +116,7 @@ case $CPU in
 	;;
 esac
 
-#Check if run as root
-if [[ "$(id -u)" != "0" ]]; then
-    error "You are not root. Try execute: sudo ./udooupdate.sh"
-fi
+
 
 ##############
 # KERNEL
@@ -127,12 +125,12 @@ fi
 if [ -e $PREFIX/boot/uImage ]
 then
  echo -n "Backing up the previous kernel..."
- mv $PREFIX/boot/uImage $PREFIX/boot/uImage.bak
+ mv $PREFIX/boot/uImage $PREFIX/boot/uImage.bak  || error "Failed to backup the kernel"
  ok
 fi
 
 echo -n "Copying kernel image..."
-cp uImage $PREFIX/boot/uImage
+cp uImage $PREFIX/boot/uImage || error "Failed to install the kernel"
 ok
 
 #############
@@ -140,11 +138,19 @@ ok
 #############
 
 KERNEL_REL=`uname --kernel-release`
+MOD_PATH="$PREFIX/lib/modules/$KERNEL_REL"
 
-if [ -d $PREFIX/lib/modules/$KERNEL_REL ]
+if [ -d ${MOD_PATH}_bak ] 
+then  
+  echo -n "Removing old backup..." ; 
+  rm -r ${MOD_PATH}_bak || error "Failed to remove"  
+  ok 
+fi
+
+if [ -d $MOD_PATH ]
 then
-  echo -n "Removing old modules..."
-  rm -r $PREFIX/lib/modules/$KERNEL_REL || error "Failed to remove"
+  echo -n "Backing up old modules..."
+  mv $MOD_PATH ${MOD_PATH}_bak || error "Failed to move"
   ok
 fi
 
@@ -159,7 +165,7 @@ ok
 
 echo -n "Copying uboot for the i.Mx6 $CPU..."
 
-dd if=$UBOOT of=$MMC bs=512 seek=2 skip=2 status=none || error "is $MMC correct?"
+dd if=$UBOOT of=$MMC bs=512 seek=2 skip=2 status=noxfer || error "is $MMC correct?"
 
 ok
 
