@@ -44,11 +44,15 @@ ok(){
 
 PREFIX=""
 CPU=""
+UIMAGE="uImage"
+MODULES="modules.tar.gz"
 DUAL="u-boot-dl.bin"
 QUAD="u-boot-q.bin"
 MMC="/dev/mmcblk0"
+DMSGOUT=$(dmesg)
 
 until [ -z $1 ] 
+
 do
 	case $1 in
 	--root=*)
@@ -81,6 +85,7 @@ if [[ "$(id -u)" != "0" ]]; then
     error "You are not root. Try execute: sudo ./udooupdate.sh"
 fi
 
+#Check options
 if [ ! -b $MMC ]
 then
  error "$MMC isn't a regular block file" 
@@ -116,28 +121,37 @@ case $CPU in
 	;;
 esac
 
-
+#Check files
+[ -f $MODULES ] || error "modules.tar.gz not found"
+[ -f $UIMAGE ] 	|| error "uImage not found"
+[ -f $UBOOT ]  	|| error "$UBOOT not found"
 
 ##############
 # KERNEL
 ##############
 
-if [ -e $PREFIX/boot/uImage ]
+if [ -e $PREFIX/boot/$UIMAGE ]
 then
  echo -n "Backing up the previous kernel..."
- mv $PREFIX/boot/uImage $PREFIX/boot/uImage.bak  || error "Failed to backup the kernel"
+ mv $PREFIX/boot/$UIMAGE $PREFIX/boot/${UIMAGE}.bak  || error "Failed to backup the kernel"
  ok
 fi
 
 echo -n "Copying kernel image..."
-cp uImage $PREFIX/boot/uImage || error "Failed to install the kernel"
+cp uImage $PREFIX/boot/$UIMAGE || error "Failed to install the kernel"
 ok
 
 #############
 #MODULES
 #############
 
-KERNEL_REL=`uname --kernel-release`
+if [[ $DMSGOUT =~ "UDOO" ]]
+then
+ KERNEL_REL=`uname --kernel-release`
+else
+ KERNEL_REL=`tar -tzf $MODULES | sed -n "3p" | cut -d \/ -f 3`
+fi
+
 MOD_PATH="$PREFIX/lib/modules/$KERNEL_REL"
 
 if [ -d ${MOD_PATH}_bak ] 
@@ -154,16 +168,18 @@ then
   ok
 fi
 
+
 echo -n "Installing kernel modules..."
-tar -xzpf modules.tar.gz -C $PREFIX/ 	|| error "Broken tar?"
-#cp -r lib $PREFIX 			|| error "symbolic lib?"
+
+tar -xzpf $MODULES -C $PREFIX/ || error "Broken tar?"
+
 ok
 
 #############
 #U-BOOT
 #############
 
-echo -n "Copying uboot for the i.Mx6 $CPU..."
+echo "Copying uboot for the i.Mx6 $CPU..."
 
 dd if=$UBOOT of=$MMC bs=512 seek=2 skip=2 status=noxfer || error "is $MMC correct?"
 
