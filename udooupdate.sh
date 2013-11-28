@@ -46,8 +46,8 @@ PREFIX=""
 CPU=""
 UIMAGE="uImage"
 MODULES="modules.tar.gz"
-DUAL="u-boot-d.bin"
-QUAD="u-boot-q.bin"
+DUAL="u-boot-d.imx"
+QUAD="u-boot-q.imx"
 MMC="/dev/mmcblk0"
 DMSGOUT=$(dmesg)
 
@@ -181,7 +181,7 @@ ok
 
 echo "Copying uboot for the i.Mx6 $CPU..."
 
-dd if=$UBOOT of=$MMC bs=512 seek=2 skip=2 status=noxfer || error "is $MMC correct?"
+dd if=$UBOOT of=$MMC bs=512 seek=2 status=noxfer || error "is $MMC correct?"
 
 ok
 
